@@ -1,9 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def parse_standings(standings_file, path_to_data):
-    columns=['Rank', 'Team Name', 'Owners', 'Points For',
-         'Points Against', 'Record', 'Wins', 'Games Played', 'Pct (%)']
+def parse_standings(standings_file, path_to_data, columns):
     dataframe = pd.DataFrame(columns=columns)
 
     with open(path_to_data + standings_file) as s_file:
@@ -34,17 +32,12 @@ def parse_standings(standings_file, path_to_data):
     return dataframe
 
 def team_loss_string(row):
-    output = row['Team Name']
-    output += " ("
-    output += row["Record"]
-    output += ") Loss"
-
-    return output
+    return row['Team Name'] + " (" + row['Record'] + ") Loss"
     
-def string_for_team_losses(filtered_df):
+def string_for_team_losses(filtered_df, rank_col):
     output = []
     length = len(filtered_df)
-    rnge = filtered_df["Rank"].max() - filtered_df["Rank"].min() + 1
+    rnge = filtered_df[rank_col].max() - filtered_df[rank_col].min() + 1
 
     if (length == 0): return output
     if (length == 1): return [team_loss_string(filtered_df.iloc[0])]
@@ -58,41 +51,48 @@ def string_for_team_losses(filtered_df):
     return output
 
 
-
-def keep_teams_below(df, safezone_num, column_string):
+# consolidate keep_teams_below() and catchup_to_teams_above()
+def keep_teams_below(df, safezone_num, column_string, gp_col, wins_col, rank_col):
     if type(df) == None or safezone_num < 1 or safezone_num > len(df) or type(column_string) == None:# or column_string not in df.columns:
             return ''
-    games_left = regular_season_games - df['Games Played']
-    df[column_string] = (df.iloc[safezone_num]['Wins'] + games_left) - df['Wins'] + 1
+    games_left = regular_season_games - df[gp_col]
+    df[column_string] = (df.iloc[safezone_num][wins_col] + games_left) - df[wins_col] + 1
 
-    fringe = df[df["Wins"] == df.iloc[safezone_num]['Wins']]
+    fringe = df[df[wins_col] == df.iloc[safezone_num][wins_col]]
     outside_length = len(fringe)
-    fringe_teams = fringe["Rank"].max() - fringe["Rank"].min() + 1
+    fringe_teams = fringe[rank_col].max() - fringe[rank_col].min() + 1
 
-    return string_for_team_losses(fringe)
+    return string_for_team_losses(fringe, rank_col)
 
-def catchup_to_teams_above(df, safezone_num, column_string):
+def catchup_to_teams_above(df, safezone_num, column_string, gp_col, wins_col, rank_col):
     # if df == None or safezone_num < 1 or safezone_num > len(df) or column_string == None or column_string not in df: return ''
 
-    games_left = regular_season_games - df['Games Played']
-    df[column_string] = (df['Wins'] + games_left) - df.iloc[safezone_num - 1]['Wins'] + 1
+    games_left = regular_season_games - df[gp_col]
+    df[column_string] = (df[wins_col] + games_left) - df.iloc[safezone_num - 1][wins_col] + 1
     
-    barely_in = df[df["Wins"] == df.iloc[safezone_num - 1]['Wins']]
+    barely_in = df[df[wins_col] == df.iloc[safezone_num - 1][wins_col]]
     barely_in_length = len(barely_in)
-    barely_in_teams = barely_in["Rank"].max() - barely_in["Rank"].min() + 1
+    barely_in_teams = barely_in[rank_col].max() - barely_in[rank_col].min() + 1
 
-    return string_for_team_losses(barely_in)
+    return string_for_team_losses(barely_in, rank_col)
 
-def set_status(df, symbols):
+def set_status(df, symbols, gp_col, wins_col, rank_col, status_col):
     scenarios = []
-    df['Status'] = ''
+    df[status_col] = ''
 
     for key in symbols:
-        if symbols[key][1]: scenarios.append((key, symbols[key][3], keep_teams_below(df, symbols[key][2], key), True))
-        else: scenarios.append((key, symbols[key][3], catchup_to_teams_above(df, symbols[key][2], key), False))
+        if symbols[key][2] > 0:
+            if symbols[key][1]: scenarios.append((key,
+                                        symbols[key][3],
+                                        keep_teams_below(df, symbols[key][2], key, gp_col, wins_col, rank_col),
+                                        True))
+            else: scenarios.append((key,
+                            symbols[key][3],
+                            catchup_to_teams_above(df, symbols[key][2], key, gp_col, wins_col, rank_col),
+                            False))
 
         if key in df.columns: df.loc[df[key] <= 0, 'Status'] += symbols[key][0]
-    df.loc[df['Status'] != '', 'Status'] = '[' + df['Status'] + ']'
+    df.loc[df[status_col] != '', status_col] = '[' + df[status_col] + ']'
 
     return scenarios
 
@@ -119,6 +119,8 @@ def criteria_builder(and_or, display_title, string_arr):
 
     return output
 
+
+# consolidate keep_below... and catchup_above...
 def keep_below_criteria_builder(row, criteria_string, display_title, string_arr):
     and_or = None
     if row[criteria_string] == 1: and_or = "OR"
@@ -141,30 +143,41 @@ def base_symbols(playoff_teams, playoff_bye_teams):
 
     return clinch_symbols
 
+def base_message():
+    return "Without further ado,\n" \
+            + "PLAYOFF PICTURE brought to you by a Julin’ Around Manjie\n" \
+            + "[*] Clinched Homefield Advantage in the Playoffs\n" \
+            + "[z] Clinched First-Round Bye\n" \
+            + "[x] Clinched Playoff Berth\n" \
+            + "[e] Eliminated From Playoff Contention\n\n"
+
+def print_team(row, status_col, rank_col, record_col, team_col, owners_col):
+    return row[status_col] + "\t" + str(int(row[rank_col])) + ") [" + row[record_col] + "] " + row[team_col] + " (" + row[owners_col] + ")"
+
+
 def main(standings_file, path_to_data, regular_season_games, total_teams, playoff_teams, playoff_bye_teams, symbols):
-    df = parse_standings(standings_file, path_to_data)
+    RANK = 'Rank'
+    TEAM = 'Team Name'
+    OWNERS = 'Owners'
+    PF = 'Points For'
+    PA = 'Points Against'
+    RECORD = 'Record'
+    WINS = 'Wins'
+    GP = 'Games Played'
+    PCT = 'Pct (%)'
+    STATUS = 'Status'
+
+    columns=[RANK, TEAM, OWNERS, PF, PA, RECORD, WINS, GP, PCT]
+    df = parse_standings(standings_file, path_to_data, columns)
     non_playoff = total_teams - playoff_teams
-    scenarios = set_status(df, symbols)
+    scenarios = set_status(df, symbols, GP, WINS, RANK, STATUS)
 
     output = []
-    output.append("Without further ado,\n" \
-                + "PLAYOFF PICTURE brought to you by a Julin’ Around Manjie\n" \
-                + "[*] Clinched Homefield Advantage in the Playoffs\n" \
-                + "[z] Clinched First-Round Bye\n" \
-                + "[x] Clinched Playoff Berth\n" \
-                + "[e] Eliminated From Playoff Contention\n\n")
+    output += base_message()
     for index, row in df.iterrows():
-        output += row['Status']
-        output += "\t"
-        output += str(int(row['Rank']))
-        output +=  ") ["
-        output += row['Record']
-        output += "] "
-        output += row['Team Name']
-        output += " ("
-        output += row['Owners']
-        output += ")"
+        output += print_team(row, STATUS, RANK, RECORD, TEAM, OWNERS)
         for scenario in scenarios:
+            # consolidate below
             if scenario[-1]: output += keep_below_criteria_builder(row, scenario[0], scenario[1], scenario[2])
             else: output += catchup_above_criteria_builder(row, scenario[0], scenario[1], scenario[2])
         output += "\n\n"
@@ -172,7 +185,7 @@ def main(standings_file, path_to_data, regular_season_games, total_teams, playof
 
 ######################################
 
-usePJC = True
+usePJC = False
 
 regular_season_games = 13
 total_teams = 12
@@ -190,4 +203,5 @@ symbols = base_symbols(playoff_teams, playoff_bye_teams)
 print_output, dataframe = main(s_file, path_to_data, regular_season_games, total_teams, playoff_teams, playoff_bye_teams, symbols)
 
 print(print_output)
+# print(playoff_teams)
 # print(dataframe)
