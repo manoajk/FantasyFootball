@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
 
-def parse_standings(standings_file):
+def parse_standings(standings_file, path_to_data):
     columns=['Rank', 'Team Name', 'Owners', 'Points For',
          'Points Against', 'Record', 'Wins', 'Games Played', 'Pct (%)']
     dataframe = pd.DataFrame(columns=columns)
 
-    with open('../data_files/' + standings_file) as s_file:
+    with open(path_to_data + standings_file) as s_file:
         rank = 1
 
         for line in s_file:
@@ -88,10 +88,10 @@ def set_status(df, symbols):
     df['Status'] = ''
 
     for key in symbols:
-        if symbols[key][1]: scenarios.append((key, symbols[key][3], keep_teams_below(df, symbols[key][2], key)))
-        else: scenarios.append((key, symbols[key][3], catchup_to_teams_above(df, symbols[key][2], key)))
+        if symbols[key][1]: scenarios.append((key, symbols[key][3], keep_teams_below(df, symbols[key][2], key), True))
+        else: scenarios.append((key, symbols[key][3], catchup_to_teams_above(df, symbols[key][2], key), False))
 
-        if key in df.columns: df.loc[df[key] == 0, 'Status'] += symbols[key][0]
+        if key in df.columns: df.loc[df[key] <= 0, 'Status'] += symbols[key][0]
     df.loc[df['Status'] != '', 'Status'] = '[' + df['Status'] + ']'
 
     return scenarios
@@ -99,12 +99,8 @@ def set_status(df, symbols):
 def new_tab_lines(num_tabs=0, num_lines=1):
     return num_lines * '\n' + num_tabs * '\t'
 
-def criteria_builder(row, criteria_string, display_title, string_arr):
+def criteria_builder(and_or, display_title, string_arr):
     output = []
-    and_or = None
-
-    if row[criteria_string] == 1: and_or = "OR"
-    elif row[criteria_string] == 2: and_or = "AND"
     if and_or != None:
         two_tabs = new_tab_lines(2)
         one_tab = new_tab_lines(1)
@@ -119,21 +115,34 @@ def criteria_builder(row, criteria_string, display_title, string_arr):
         output += one_tab
         output += "   b) "
         output += two_tabs.join(string_arr)
+        output += "\n"
 
     return output
+
+def keep_below_criteria_builder(row, criteria_string, display_title, string_arr):
+    and_or = None
+    if row[criteria_string] == 1: and_or = "OR"
+    elif row[criteria_string] == 2: and_or = "AND"
+    return criteria_builder(and_or, display_title, string_arr)
+        
+def catchup_above_criteria_builder(row, criteria_string, display_title, string_arr):
+    and_or = None
+    if row[criteria_string] == 2: and_or = "OR"
+    elif row[criteria_string] == 1: and_or = "AND"
+    return criteria_builder(and_or, display_title, string_arr)
 
 def base_symbols(playoff_teams, playoff_bye_teams):
     clinch_symbols = {}
 
-    clinch_symbols['Wins to Clinch Playoffs'] = ["x", True, playoff_teams, "Playoff Clinching Scenarios"]
-    clinch_symbols['Wins to Clinch First-Round Bye'] = ["z", True, playoff_bye_teams, "Bye-Week Clinching Scenarios"]
     clinch_symbols['Wins to Clinch Homefield Advantage'] = ["*", True, 1, "Homefield Advantage Clinching Scenarios"]
+    clinch_symbols['Wins to Clinch First-Round Bye'] = ["z", True, playoff_bye_teams, "Bye-Week Clinching Scenarios"]
+    clinch_symbols['Wins to Clinch Playoffs'] = ["x", True, playoff_teams, "Playoff Clinching Scenarios"]
     clinch_symbols['Losses till Playoff-Ineligbile'] = ["e", False, playoff_teams, "Playoff Elimination Prevention Scenarios"]
 
     return clinch_symbols
 
-def main(standings_file, regular_season_games, total_teams, playoff_teams, playoff_bye_teams, symbols):
-    df = parse_standings(standings_file)
+def main(standings_file, path_to_data, regular_season_games, total_teams, playoff_teams, playoff_bye_teams, symbols):
+    df = parse_standings(standings_file, path_to_data)
     non_playoff = total_teams - playoff_teams
     scenarios = set_status(df, symbols)
 
@@ -156,19 +165,29 @@ def main(standings_file, regular_season_games, total_teams, playoff_teams, playo
         output += row['Owners']
         output += ")"
         for scenario in scenarios:
-            output += criteria_builder(row, scenario[0], scenario[1], scenario[2])
+            if scenario[-1]: output += keep_below_criteria_builder(row, scenario[0], scenario[1], scenario[2])
+            else: output += catchup_above_criteria_builder(row, scenario[0], scenario[1], scenario[2])
         output += "\n\n"
-    return "".join(output)
+    return "".join(output), df
 
-######
+######################################
+
+usePJC = True
 
 regular_season_games = 13
 total_teams = 12
-playoff_teams = 6
+path_to_data = '../data_files/'
+if usePJC:
+    playoff_teams = 6
+    s_file = 'pjc_standings_11.txt'
+else:
+    playoff_teams = 8
+    s_file = 'gt_standings_11.txt'
+
 playoff_bye_teams = 8 - playoff_teams
-s_file = 'standings.txt'
 
 symbols = base_symbols(playoff_teams, playoff_bye_teams)
-print_output = main(s_file, regular_season_games, total_teams, playoff_teams, playoff_bye_teams, symbols)
+print_output, dataframe = main(s_file, path_to_data, regular_season_games, total_teams, playoff_teams, playoff_bye_teams, symbols)
 
 print(print_output)
+# print(dataframe)
