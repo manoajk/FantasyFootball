@@ -1,0 +1,13 @@
+TEAM, OWNER(S)	PF	PA	HOME	AWAY	DIV	STREAK
+13 Reasons Ty (Yash Shah)	1072.7	898.8	3-1-0	5-1-0	8-2-0	L1
+Green Gregs and Ham (Manoaj Kandiakounder)	1081.9	966	4-1-0	3-2-0	7-3-0	W4
+One Crabtree Hill (Farris Ahmed, Gurmukh Kainth)	1060.4	954.9	4-1-0	3-2-0	7-3-0	W6
+Make AmariCarr Great Again (Nishil Shah)	1021.2	969.3	3-1-0	3-3-0	6-4-0	L2
+Morning Woodhead (Abraham Nirappel)	974.8	890.2	3-2-0	3-2-0	6-4-0	W2
+Hyde and Tyreek (mihir trivedi)	954.7	921.2	4-2-0	1-3-0	5-5-0	W2
+What would Breesus do? (Parth Patel)	1002.1	988.1	3-1-0	1-5-0	4-6-0	L1
+The Brady Bunch (Nishan Gandhi)	946.7	970.7	2-3-0	2-3-0	4-6-0	L2
+Esther's Kirk-land (Brian Shi, Zachary Shi)	946.4	1045.2	2-3-0	2-3-0	4-6-0	W1
+Brian Nadkarni (Malay Thaker)	849.5	1003.1	3-3-0	1-3-0	4-6-0	L2
+How the Lynch Stole Christmas (Mohit Jauhri)	856.8	989.5	3-3-0	0-4-0	3-7-0	W1
+The Soph (Tariq Ahsan)	910.1	1080.2	0-5-0	2-3-0	2-8-0	L4
