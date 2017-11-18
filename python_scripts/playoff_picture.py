@@ -47,27 +47,12 @@ def team_loss_string(row):
 def string_for_team_losses(filtered_df, rank_col, wins_col, safezone_num, push_teams_below):
     output = []
     rnge = filtered_df[rank_col].max() - filtered_df[rank_col].min() + 1
-    
-#     print("SAFEZONE", safezone_num)
-#     print(filtered_df)
-    if push_teams_below:
-
-#         print("BELOW", filtered_df[filtered_df[rank_col] > safezone_num])
-        
+        if push_teams_below:
         if len(filtered_df[filtered_df[rank_col] > safezone_num]) == 0: return []
-#         length = filtered_df.loc[safezone_num][rank_col] - filtered_df[rank_col].min() + 1
-#         length = safezone_num - filtered_df[rank_col].min() + 1
         length = filtered_df[rank_col].max() - safezone_num
-#         print(filtered_df[rank_col].max(), '-', safezone_num)
-#         print("LENGTH/RANGE", length, "/", rnge)
-#         print("")
     else:
-#         print("ABOVE", filtered_df[filtered_df[rank_col] <= safezone_num])
         if len(filtered_df[filtered_df[rank_col] <= safezone_num]) == 0: return []
-#         length = filtered_df[rank_col].max() - filtered_df.loc[safezone_num][rank_col] + 1
         length = filtered_df[rank_col].max() - safezone_num + 1
-#         print("LENGTH/RANGE", length, "/", rnge)
-#         print("")
 
     if (length <= 0): return output
     if (length == 1): return [team_loss_string(filtered_df.iloc[0])]
@@ -208,10 +193,8 @@ def main(standings_file, path_to_data, regular_season_games, total_teams, playof
         output += print_team(row, STATUS, RANK, RECORD, TEAM, OWNERS)
         for scenario in scenarios:
             # consolidate below
-#             print(row[TEAM], "SCENARIO", scenario)
             if scenario[-1]: output += keep_below_criteria_builder(row, scenario[0], scenario[1], scenario[2])
             else: output += catchup_above_criteria_builder(row, scenario[0], scenario[1], scenario[2])
-#             print("")
         output += "\n\n"
     return "".join(output), df
 
@@ -235,5 +218,3 @@ symbols = base_symbols(playoff_teams, playoff_bye_teams)
 print_output, dataframe = main(s_file, path_to_data, regular_season_games, total_teams, playoff_teams, playoff_bye_teams, symbols)
 
 print(print_output)
-# print(playoff_teams)
-# print(dataframe)
