@@ -1,6 +1,16 @@
 import pandas as pd
 import numpy as np
 
+def num_to_word(num):
+    num_word_dict = {1: "One", 2: "Two", 3: "Three",
+                     4: "Four", 5: "Five", 6: "Six",
+                     7: "Seven", 8: "Eight", 9: "Nine",
+                     10: "Ten", 11: "Eleven", 12: "Twelve",
+                     13: "Thirteen"}
+    if type(num) is float: num = int(num)
+    if type(num) is int: return num_word_dict[num].upper()
+    return num
+
 def parse_standings(standings_file, path_to_data, columns):
     dataframe = pd.DataFrame(columns=columns)
 
@@ -34,17 +44,37 @@ def parse_standings(standings_file, path_to_data, columns):
 def team_loss_string(row):
     return row['Team Name'] + " (" + row['Record'] + ") Loss"
     
-def string_for_team_losses(filtered_df, rank_col):
+def string_for_team_losses(filtered_df, rank_col, wins_col, safezone_num, push_teams_below):
     output = []
-    length = len(filtered_df)
     rnge = filtered_df[rank_col].max() - filtered_df[rank_col].min() + 1
+    
+#     print("SAFEZONE", safezone_num)
+#     print(filtered_df)
+    if push_teams_below:
 
-    if (length == 0): return output
+#         print("BELOW", filtered_df[filtered_df[rank_col] > safezone_num])
+        
+        if len(filtered_df[filtered_df[rank_col] > safezone_num]) == 0: return []
+#         length = filtered_df.loc[safezone_num][rank_col] - filtered_df[rank_col].min() + 1
+#         length = safezone_num - filtered_df[rank_col].min() + 1
+        length = filtered_df[rank_col].max() - safezone_num
+#         print(filtered_df[rank_col].max(), '-', safezone_num)
+#         print("LENGTH/RANGE", length, "/", rnge)
+#         print("")
+    else:
+#         print("ABOVE", filtered_df[filtered_df[rank_col] <= safezone_num])
+        if len(filtered_df[filtered_df[rank_col] <= safezone_num]) == 0: return []
+#         length = filtered_df[rank_col].max() - filtered_df.loc[safezone_num][rank_col] + 1
+        length = filtered_df[rank_col].max() - safezone_num + 1
+#         print("LENGTH/RANGE", length, "/", rnge)
+#         print("")
+
+    if (length <= 0): return output
     if (length == 1): return [team_loss_string(filtered_df.iloc[0])]
-    keyword = length
+    keyword = int(length)
     if length == rnge:
         keyword = 'BOTH' if length == 2 else 'ALL'
-    output += [keyword + " of the following need(s) to occur:"]
+    output += [str(num_to_word(keyword)) + " of the following need(s) to occur:"]
     for index, row in filtered_df.iterrows():
         output += [" - " + team_loss_string(row)]
 
@@ -62,7 +92,7 @@ def keep_teams_below(df, safezone_num, column_string, gp_col, wins_col, rank_col
     outside_length = len(fringe)
     fringe_teams = fringe[rank_col].max() - fringe[rank_col].min() + 1
 
-    return string_for_team_losses(fringe, rank_col)
+    return string_for_team_losses(fringe, rank_col, wins_col, safezone_num, True)
 
 def catchup_to_teams_above(df, safezone_num, column_string, gp_col, wins_col, rank_col):
     # if df == None or safezone_num < 1 or safezone_num > len(df) or column_string == None or column_string not in df: return ''
@@ -74,7 +104,7 @@ def catchup_to_teams_above(df, safezone_num, column_string, gp_col, wins_col, ra
     barely_in_length = len(barely_in)
     barely_in_teams = barely_in[rank_col].max() - barely_in[rank_col].min() + 1
 
-    return string_for_team_losses(barely_in, rank_col)
+    return string_for_team_losses(barely_in, rank_col, wins_col, safezone_num, False)
 
 def set_status(df, symbols, gp_col, wins_col, rank_col, status_col):
     scenarios = []
@@ -116,7 +146,7 @@ def criteria_builder(and_or, display_title, string_arr):
         output += "   b) "
         output += two_tabs.join(string_arr)
         output += "\n"
-
+    
     return output
 
 
@@ -178,14 +208,16 @@ def main(standings_file, path_to_data, regular_season_games, total_teams, playof
         output += print_team(row, STATUS, RANK, RECORD, TEAM, OWNERS)
         for scenario in scenarios:
             # consolidate below
+#             print(row[TEAM], "SCENARIO", scenario)
             if scenario[-1]: output += keep_below_criteria_builder(row, scenario[0], scenario[1], scenario[2])
             else: output += catchup_above_criteria_builder(row, scenario[0], scenario[1], scenario[2])
+#             print("")
         output += "\n\n"
     return "".join(output), df
 
 ######################################
 
-usePJC = False
+usePJC = True
 
 regular_season_games = 13
 total_teams = 12
